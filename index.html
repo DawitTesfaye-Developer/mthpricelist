@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTH Master Price List 2026</title>
+
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+            <img
+                src="https://z-cdn-media.chatglm.cn/files/c2285498-7dc4-4723-9840-6dd9a13e6052.png?auth_key=1890842496-521af9ed90334101b75a2387d0d250c7-0-5f961eb2df5d145ac8da88ca7a3972f3"
+                alt="MTH Maternal, Child and Surgical Center"
+                class="banner-img"
+            >
+
+            <div class="subtitle">
+                Your Family’s Health <span class="pink">Ally</span>
+            </div>
+        </header>
+
+
+        <div class="controls">
+
+            <div class="search-bar">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search items (e.g., Registration, CT, REG0157)..."
+                    onkeyup="handleSearch()"
+                    autofocus
+                >
+            </div>
+
+            <div class="category-filter">
+
+                <button
+                    id="categoryBtn"
+                    onclick="toggleCategoryDropdown()"
+                >
+                    <span id="categoryBtnText">
+                        Select Category
+                    </span>
+
+                    <span class="arrow"></span>
+                </button>
+
+                <div
+                    id="categoryDropdown"
+                    class="dropdown-content"
+                >
+                    <div
+                        class="category-option"
+                        onclick="selectCategory('all')"
+                    >
+                        All Categories
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div
+            class="results-info"
+            id="resultsInfo"
+        >
+            Loading data...
+        </div>
+
+
+        <div
+            class="results-grid"
+            id="resultsContainer"
+        >
+            <div class="placeholder">
+                Loading price database...
+            </div>
+        </div>
+
+    </div>
+
+
+<script>
+
+    // =========================================================
+    // GLOBAL VARIABLES
+    // =========================================================
+
+    let database = [];
+
+    let currentCategory = "all";
+
+
+    // =========================================================
+    // JSON FILE NAME
+    // =========================================================
+
+    const JSON_FILE =
+        "./mthpricelist/MTH_Master_Price_List_Clean.json";
+
+
+    // =========================================================
+    // LOAD JSON DATABASE
+    // =========================================================
+
+    window.addEventListener("DOMContentLoaded", loadDatabase);
+
+
+    async function loadDatabase() {
+
+        const resultsInfo =
+            document.getElementById("resultsInfo");
+
+        const resultsContainer =
+            document.getElementById("resultsContainer");
+
+
+        try {
+
+            resultsInfo.innerText =
+                "Loading price database...";
+
+
+            // Fetch JSON file
+            const response =
+                await fetch(JSON_FILE);
+
+
+            // Check whether the file exists
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP error: ${response.status}`
+                );
+
+            }
+
+
+            // Convert JSON into JavaScript object
+            const workbook =
+                await response.json();
+
+
+            console.log(
+                "JSON loaded successfully:",
+                workbook
+            );
+
+
+            // Clear old database
+            database = [];
+
+
+            // =================================================
+            // READ ALL EXCEL SHEETS
+            // =================================================
+
+            Object.entries(workbook).forEach(
+                ([sheetName, rows]) => {
+
+                    if (!Array.isArray(rows)) {
+                        return;
+                    }
+
+
+                    rows.forEach(row => {
+
+                        if (!Array.isArray(row)) {
+                            return;
+                        }
+
+
+                        // Your original Excel parser used:
+                        //
+                        // parts[2] = Code
+                        // parts[3] = Name
+                        // parts[4] = Price
+                        // parts[5] = Category
+
+
+                        const code =
+                            row[2] != null
+                                ? String(row[2]).trim()
+                                : "";
+
+
+                        const name =
+                            row[3] != null
+                                ? String(row[3]).trim()
+                                : "";
+
+
+                        const price =
+                            row[4] != null
+                                ? String(row[4]).trim()
+                                : "";
+
+
+                        let category =
+                            row[5] != null
+                                ? String(row[5]).trim()
+                                : "";
+
+
+                        // If the Excel category is empty,
+                        // use the worksheet name.
+                        if (!category) {
+                            category = sheetName;
+                        }
+
+
+                        // Ignore empty/header rows
+                        if (
+                            !code ||
+                            !name ||
+                            code === "Code" ||
+                            code === "*" ||
+                            code === "No." ||
+                            name === "Name"
+                        ) {
+                            return;
+                        }
+
+
+                        // Add item
+                        database.push({
+
+                            code: code,
+
+                            name: name,
+
+                            price: price,
+
+                            category: category,
+
+                            sheet: sheetName
+
+                        });
+
+                    });
+
+                }
+            );
+
+
+            console.log(
+                "Total items loaded:",
+                database.length
+            );
+
+
+            // =================================================
+            // CREATE CATEGORY DROPDOWN
+            // =================================================
+
+            populateCategories();
+
+
+            // =================================================
+            // DISPLAY STATUS
+            // =================================================
+
+            resultsInfo.innerText =
+                `Successfully loaded ${database.length} items from the price database.`;
+
+
+            resultsContainer.innerHTML =
+                `
+                <div class="placeholder">
+                    Start by typing a search term
+                    or selecting a category above...
+                </div>
+                `;
+
+
+            // Initialize
+            handleSearch();
+
+
+        } catch (error) {
+
+            console.error(
+                "JSON loading error:",
+                error
+            );
+
+
+            resultsInfo.innerText =
+                "Unable to load the price database.";
+
+
+            resultsContainer.innerHTML =
+                `
+                <div class="placeholder">
+
+                    <strong>
+                        Error loading JSON database
+                    </strong>
+
+                    <br><br>
+
+                    Make sure this file exists
+                    in the same folder as index.html:
+
+                    <br><br>
+
+                    <code>
+                        MTH_Current_MASTER_Price_2026_PrimeCare1.json
+                    </code>
+
+                    <br><br>
+
+                    Also make sure you are running
+                    the website using a local web server
+                    such as VS Code Live Server.
+
+                </div>
+                `;
+
+        }
+
+    }
+
+
+    // =========================================================
+    // POPULATE CATEGORY DROPDOWN
+    // =========================================================
+
+    function populateCategories() {
+
+        const dropdown =
+            document.getElementById(
+                "categoryDropdown"
+            );
+
+
+        dropdown.innerHTML = "";
+
+
+        // All Categories
+        const allOption =
+            document.createElement("div");
+
+
+        allOption.className =
+            "category-option";
+
+
+        allOption.textContent =
+            "All Categories";
+
+
+        allOption.onclick =
+            () => selectCategory("all");
+
+
+        dropdown.appendChild(
+            allOption
+        );
+
+
+        // Get unique categories
+        const categories =
+            new Set();
+
+
+        database.forEach(item => {
+
+            if (item.category) {
+
+                categories.add(
+                    item.category
+                );
+
+            }
+
+        });
+
+
+        // Sort categories
+        const sortedCategories =
+            Array.from(categories).sort(
+                (a, b) =>
+                    a.localeCompare(b)
+            );
+
+
+        // Add categories
+        sortedCategories.forEach(
+            category => {
+
+                const div =
+                    document.createElement("div");
+
+
+                div.className =
+                    "category-option";
+
+
+                div.textContent =
+                    category;
+
+
+                div.onclick =
+                    () =>
+                        selectCategory(
+                            category
+                        );
+
+
+                dropdown.appendChild(
+                    div
+                );
+
+            }
+        );
+
+    }
+
+
+    // =========================================================
+    // CATEGORY DROPDOWN
+    // =========================================================
+
+    function toggleCategoryDropdown() {
+
+        document
+            .getElementById(
+                "categoryDropdown"
+            )
+            .classList.toggle("show");
+
+    }
+
+
+    // =========================================================
+    // CLOSE DROPDOWN WHEN CLICKING OUTSIDE
+    // =========================================================
+
+    window.addEventListener(
+        "click",
+        function(event) {
+
+            const button =
+                document.getElementById(
+                    "categoryBtn"
+                );
+
+
+            const dropdown =
+                document.getElementById(
+                    "categoryDropdown"
+                );
+
+
+            if (
+                !button.contains(event.target) &&
+                !dropdown.contains(event.target)
+            ) {
+
+                dropdown.classList.remove(
+                    "show"
+                );
+
+            }
+
+        }
+    );
+
+
+    // =========================================================
+    // SELECT CATEGORY
+    // =========================================================
+
+    function selectCategory(category) {
+
+        currentCategory =
+            category;
+
+
+        document.getElementById(
+            "categoryBtnText"
+        ).innerText =
+            category === "all"
+                ? "Select Category"
+                : category;
+
+
+        document
+            .getElementById(
+                "categoryDropdown"
+            )
+            .classList.remove(
+                "show"
+            );
+
+
+        handleSearch();
+
+    }
+
+
+    // =========================================================
+    // SEARCH
+    // =========================================================
+
+    function handleSearch() {
+
+        const input =
+            document.getElementById(
+                "searchInput"
+            );
+
+
+        const resultsContainer =
+            document.getElementById(
+                "resultsContainer"
+            );
+
+
+        const resultsInfo =
+            document.getElementById(
+                "resultsInfo"
+            );
+
+
+        const query =
+            input.value
+                .toLowerCase()
+                .trim();
+
+
+        resultsContainer.innerHTML = "";
+
+
+        // No search and no category
+        if (
+            query === "" &&
+            currentCategory === "all"
+        ) {
+
+            resultsInfo.innerText =
+                `Loaded ${database.length} items. Ready to search.`;
+
+
+            resultsContainer.innerHTML =
+                `
+                <div class="placeholder">
+                    Start by typing a search term
+                    or selecting a category above...
+                </div>
+                `;
+
+            return;
+
+        }
+
+
+        // =====================================================
+        // FILTER DATABASE
+        // =====================================================
+
+        const results =
+            database.filter(item => {
+
+                const matchesText =
+
+                    item.name
+                        .toLowerCase()
+                        .includes(query)
+
+                    ||
+
+                    item.code
+                        .toLowerCase()
+                        .includes(query)
+
+                    ||
+
+                    item.category
+                        .toLowerCase()
+                        .includes(query);
+
+
+                const matchesCategory =
+
+                    currentCategory === "all"
+
+                    ||
+
+                    item.category ===
+                        currentCategory;
+
+
+                return (
+                    matchesText &&
+                    matchesCategory
+                );
+
+            });
+
+
+        // =====================================================
+        // NO RESULTS
+        // =====================================================
+
+        if (results.length === 0) {
+
+            resultsInfo.innerText =
+                "No results found for your search.";
+
+
+            resultsContainer.innerHTML =
+                `
+                <div class="placeholder">
+                    Try a different keyword
+                    or category.
+                </div>
+                `;
+
+            return;
+
+        }
+
+
+        // =====================================================
+        // RESULT COUNT
+        // =====================================================
+
+        resultsInfo.innerText =
+
+            results.length === 1
+
+                ? "Found 1 result."
+
+                : `Found ${results.length} results.`;
+
+
+        // =====================================================
+        // DISPLAY RESULTS
+        // =====================================================
+
+        results.forEach(item => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+
+            card.className =
+                "result-card";
+
+
+            // Format price
+            let priceDisplay =
+                item.price;
+
+
+            if (
+                !priceDisplay ||
+                priceDisplay === "*" ||
+                priceDisplay === "null"
+            ) {
+
+                priceDisplay =
+                    "N/A";
+
+            } else {
+
+                priceDisplay =
+                    `${priceDisplay} ETB`;
+
+            }
+
+
+            // Build card
+            card.innerHTML = `
+
+                <h3>
+                    ${escapeHTML(item.name)}
+                </h3>
+
+                <div class="result-details">
+
+                    <div class="detail-row">
+
+                        <span class="detail-label">
+                            Code:
+                        </span>
+
+                        <span class="detail-value">
+                            ${escapeHTML(item.code)}
+                        </span>
+
+                    </div>
+
+
+                    <div class="detail-row">
+
+                        <span class="detail-label">
+                            Price:
+                        </span>
+
+                        <span class="detail-value price">
+                            ${escapeHTML(priceDisplay)}
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <span class="category-badge">
+                    ${escapeHTML(item.category)}
+                </span>
+
+            `;
+
+
+            resultsContainer.appendChild(
+                card
+            );
+
+        });
+
+    }
+
+
+    // =========================================================
+    // SECURITY: ESCAPE HTML
+    // =========================================================
+
+    function escapeHTML(value) {
+
+        return String(value)
+            .replace(
+                /&/g,
+                "&amp;"
+            )
+            .replace(
+                /</g,
+                "&lt;"
+            )
+            .replace(
+                />/g,
+                "&gt;"
+            )
+            .replace(
+                /"/g,
+                "&quot;"
+            )
+            .replace(
+                /'/g,
+                "&#039;"
+            );
+
+    }
+
+</script>
+
+</body>
+</html>
+

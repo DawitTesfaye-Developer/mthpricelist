@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MTH Master Price List 2026</title>
-
     <link rel="stylesheet" href="index.css">
 </head>
-
 <body>
 
     <div class="container">
@@ -172,41 +170,26 @@
 
                     rows.forEach(row => {
 
-                        if (!Array.isArray(row)) {
+                        if (!Array.isArray(row) && typeof row !== 'object') {
                             return;
                         }
 
+                        // Handle both array rows and object rows
+                        let code, name, price, category;
 
-                        // Your original Excel parser used:
-                        //
-                        // parts[2] = Code
-                        // parts[3] = Name
-                        // parts[4] = Price
-                        // parts[5] = Category
-
-
-                        const code =
-                            row[2] != null
-                                ? String(row[2]).trim()
-                                : "";
-
-
-                        const name =
-                            row[3] != null
-                                ? String(row[3]).trim()
-                                : "";
-
-
-                        const price =
-                            row[4] != null
-                                ? String(row[4]).trim()
-                                : "";
-
-
-                        let category =
-                            row[5] != null
-                                ? String(row[5]).trim()
-                                : "";
+                        if (Array.isArray(row)) {
+                            // Original array parsing logic
+                            code = row[2] != null ? String(row[2]).trim() : "";
+                            name = row[3] != null ? String(row[3]).trim() : "";
+                            price = row[4] != null ? String(row[4]).trim() : "";
+                            category = row[5] != null ? String(row[5]).trim() : "";
+                        } else {
+                            // Object parsing (new format)
+                            code = row["Code"] ? String(row["Code"]).trim() : "";
+                            name = row["Name"] ? String(row["Name"]).trim() : "";
+                            price = row["Price"] != null ? String(row["Price"]).trim() : "";
+                            category = row["Category"] ? String(row["Category"]).trim() : "";
+                        }
 
 
                         // If the Excel category is empty,
@@ -312,7 +295,7 @@
                     <br><br>
 
                     <code>
-                        MTH_Current_MASTER_Price_2026_PrimeCare1.json
+                        MTH_Master_Price_List_Clean.json
                     </code>
 
                     <br><br>
@@ -667,7 +650,8 @@
             if (
                 !priceDisplay ||
                 priceDisplay === "*" ||
-                priceDisplay === "null"
+                priceDisplay === "null" ||
+                priceDisplay === "undefined"
             ) {
 
                 priceDisplay =
@@ -768,4 +752,3 @@
 
 </body>
 </html>
-

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTH MCH• Medical Fee Search</title>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+<div class="container">
+  <!-- header -->
+<header class="app-header">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <img src="./logo.jpg" alt="Logo" style="height: 30px; width: 30px; border-radius: 10px;">
+    </div>
+    <div class="logo-text">MTH<span>MCH &amp; SURGICAL CENTER</span></div>
+  </div>
+  <div class="badge">
+    <i class="fas fa-file-invoice"></i> 2026 Master Price · <span id="totalCount">0</span> items
+  </div>
+</header>
+
+  <!-- search -->
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-input-wrapper">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by name, code, category..." autofocus>
+      </div>
+      <div class="category-filter">
+        <select id="categorySelect">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      <button class="clear-btn" id="clearBtn"><i class="fas fa-undo-alt"></i> Reset</button>
+    </div>
+    <div class="stats">
+      <span id="resultCount">0 results</span>
+      <span style="font-weight:400; font-size:0.85rem;"><i class="far fa-clock"></i> live from 43+ sheets</span>
+    </div>
+  </div>
+
+  <!-- results -->
+  <div id="resultsContainer" class="results-grid"></div>
+</div>
+
+<script>
+(async function() {
+    // ---------- embedded dataset (extracted from the Excel) ----------
+    const response = await fetch("./data.json");
+    const rawData = await response.json();
+
+
+    // ---- DOM refs ----
+    const searchInput = document.getElementById('searchInput');
+    const categorySelect = document.getElementById('categorySelect');
+    const clearBtn = document.getElementById('clearBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultCountSpan = document.getElementById('resultCount');
+    const totalCountSpan = document.getElementById('totalCount');
+
+    // ---- helpers ----
+    function buildCategoryOptions() {
+      const cats = new Set();
+      rawData.forEach(item => {
+        if (item.category) cats.add(item.category);
+      });
+      const sorted = Array.from(cats).sort();
+      sorted.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        categorySelect.appendChild(opt);
+      });
+    }
+
+    function render(items) {
+      if (!items || items.length === 0) {
+        resultsContainer.innerHTML = `
+          <div class="no-results">
+            <i class="fas fa-search-minus"></i>
+            <h3>No matching services found</h3>
+            <p style="color:#4f6f8a; max-width:400px; margin:0 auto;">Try adjusting your search or category filter.</p>
+          </div>
+        `;
+        resultCountSpan.textContent = '0 results';
+        return;
+      }
+
+      // Sort alphabetically by name
+      const sorted = [...items].sort((a,b) => a.name.localeCompare(b.name));
+
+      let html = '';
+      sorted.forEach(item => {
+        // Format price with 2 decimals and currency symbol
+        const priceFormatted = item.price !== undefined && item.price !== null
+          ? Number(item.price).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+          : '—';
+
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="card-code"><i class="fas fa-tag"></i> ${item.code || '—'}</span>
+              <span class="card-category">${item.category || 'Uncategorized'}</span>
+            </div>
+            <div class="card-name">${item.name || 'Unnamed'}</div>
+            <div class="card-price">${priceFormatted} <small>ETB</small></div>
+            <div class="card-meta">
+              <span><i class="fas fa-folder-open"></i> ${item.sheet || '—'}</span>
+            </div>
+          </div>
+        `;
+      });
+
+      resultsContainer.innerHTML = html;
+      resultCountSpan.textContent = `${sorted.length} result${sorted.length !== 1 ? 's' : ''}`;
+    }
+
+    function filterData() {
+      const query = searchInput.value.trim().toLowerCase();
+      const category = categorySelect.value;
+
+      let filtered = rawData;
+
+      if (query) {
+        filtered = filtered.filter(item => {
+          const nameMatch = item.name.toLowerCase().includes(query);
+          const codeMatch = item.code && item.code.toLowerCase().includes(query);
+          const catMatch = item.category && item.category.toLowerCase().includes(query);
+          return nameMatch || codeMatch || catMatch;
+        });
+      }
+
+      if (category) {
+        filtered = filtered.filter(item => item.category === category);
+      }
+
+      render(filtered);
+    }
+
+    function resetFilters() {
+      searchInput.value = '';
+      categorySelect.value = '';
+      filterData();
+      searchInput.focus();
+    }
+
+    // ---- init ----
+    buildCategoryOptions();
+
+    // total count
+    totalCountSpan.textContent = rawData.length;
+
+    // initial render
+    render(rawData);
+
+    // event listeners
+    searchInput.addEventListener('input', filterData);
+    categorySelect.addEventListener('change', filterData);
+    clearBtn.addEventListener('click', resetFilters);
+
+    // quick tip: keyboard shortcut "ESC" to clear
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        resetFilters();
+      }
+    });
+
+    // if search input has focus and user presses "Escape", clear already handled
+  })().catch(error => { console.error("Could not load data.json:", error); document.getElementById("resultsContainer").innerHTML = '<div class="no-results"><h3>Unable to load price data</h3><p>Please run this website through a local server.</p></div>'; });
+</script>
+</body>
+</html>
